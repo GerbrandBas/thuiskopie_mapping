@@ -1,2 +1,1 @@
-# thuiskopie_mapping
-Interactieve Auteursrechtenkaart
+
