@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Interactieve kaart – NL Auteursrechten</title>
+  <link rel="stylesheet" href="https://unpkg.com/reactflow@11/dist/style.css" />
+  <style>
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
+    #root.page { height: 100%; display: grid; grid-template-columns: minmax(0,1fr) 340px; }
+    .graph { position: relative; border-right: 1px solid #e5e7eb; }
+    .graph > div { height: 100%; }
+    .panel { padding: 16px; overflow: auto; }
+    .legend { font-size: 14px; color: #374151; }
+    .legend h2 { margin: 0 0 8px; font-size: 16px; }
+    .badge { display: inline-block; padding: 2px 8px; border: 1px solid #d1d5db; border-radius: 999px; font-size: 12px; margin-right: 4px; }
+    .links a { color: #2563eb; text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+    .title { font-weight: 700; font-size: 18px; margin: 0 0 4px; }
+    .muted { color: #6b7280; font-size: 12px; }
+    .footer { border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 12px; font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div id="root" class="page"></div>
+
+  <script type="module">
+    // ✅ Ensure one React instance for ReactFlow (important for ESM/CDN usage)
+    import React, { useMemo, useState } from 'https://esm.sh/react@18';
+    import { createRoot } from 'https://esm.sh/react-dom@18/client?deps=react@18';
+    import ReactFlow, { Background, Controls, MiniMap } from 'https://esm.sh/reactflow@11?deps=react@18,react-dom@18';
+
+    // --------------------------- Data ---------------------------------------
+    const LINKS = {
+      aw: [
+        { label: 'Auteurswet (wetten.overheid.nl)', href: 'https://wetten.overheid.nl/BWBR0001886/' },
+        { label: 'Art. 25c – aanvullende billijke vergoeding', href: 'https://wetten.overheid.nl/BWBR0001886/#HoofdstukI_Artikel25c' },
+        { label: 'Art. 25d – non‑gebruik/ontbinding', href: 'https://wetten.overheid.nl/BWBR0001886/#HoofdstukI_Artikel25d' },
+        { label: 'Art. 45d – filmrechten', href: 'https://wetten.overheid.nl/BWBR0001886/#HoofdstukIII_Artikel45d' }
+      ],
+      wnr: [ { label: 'Wet op de naburige rechten', href: 'https://wetten.overheid.nl/BWBR0007625/' } ],
+      contract: [ { label: 'Auteurscontractenrecht – uitleg', href: 'https://www.rijksoverheid.nl/onderwerpen/auteursrecht/auteurscontractenrecht' } ],
+      wt: [ { label: 'Wet toezicht CBO’s (Wtcbo)', href: 'https://wetten.overheid.nl/BWBR0035929/' } ],
+      dsm: [ { label: 'EU DSM‑richtlijn (2019/790)', href: 'https://eur-lex.europa.eu/eli/dir/2019/790/oj' } ],
+      excepties: [ { label: 'Uitzonderingen (thuiskopie/repro/leen/onderwijs/TDM)', href: 'https://www.rijksoverheid.nl/onderwerpen/auteursrecht/uitzonderingen-op-auteursrecht' } ],
+      cvta: [ { label: 'CvTA – homepage', href: 'https://www.cvta.nl' }, { label: 'CvTA – publicaties', href: 'https://www.cvta.nl/actueel/publicaties' } ],
+      jenv: [ { label: 'Ministerie JenV', href: 'https://www.rijksoverheid.nl/ministeries/ministerie-van-justitie-en-veiligheid' } ],
+      sont: [ { label: 'SONT – Thuiskopie‑tarieven', href: 'https://www.sont.nl' } ],
+      rbhr: [ { label: 'Hoge Raad (HR)', href: 'https://www.hogeraad.nl' } ],
+      hvjeu: [ { label: 'HvJEU (Curia)', href: 'https://curia.europa.eu' } ],
+      bumastemra: [ { label: 'Buma/Stemra', href: 'https://www.bumastemra.nl' } ],
+      sena: [ { label: 'Sena', href: 'https://www.sena.nl' } ],
+      norma: [ { label: 'NORMA', href: 'https://www.stichtingnorma.nl' } ],
+      lira: [ { label: 'Lira', href: 'https://www.lira.nl' } ],
+      pro: [ { label: 'Stichting PRO', href: 'https://www.stichting-pro.nl' }, { label: 'UvO', href: 'https://www.uitgeversvooropleidingen.nl' } ],
+      pictoright: [ { label: 'Pictoright', href: 'https://www.pictoright.nl' } ],
+      vevam: [ { label: 'VEVAM', href: 'https://www.vevam.nl' } ],
+      videma: [ { label: 'Videma', href: 'https://www.videma.nl' } ],
+      sekam: [ { label: 'SEKAM', href: 'https://www.sekam.nl' } ],
+      repro: [ { label: 'Stichting Reprorecht', href: 'https://www.reprorecht.nl' } ],
+      leenrecht: [ { label: 'Stichting Leenrecht', href: 'https://www.stichtingleenrecht.nl' } ],
+      thuiskopie: [ { label: 'Stichting de Thuiskopie', href: 'https://www.thuiskopie.nl' }, { label: 'Onderzoek privékopiëren', href: 'https://www.thuiskopie.nl/onderzoek' } ],
+      thuiskopiechild: [ { label: 'Stichting de Thuiskopie', href: 'https://www.thuiskopie.nl' }, { label: 'SONT – tarieven', href: 'https://www.sont.nl' } ],
+      cvtabench: [ { label: 'CvTA – publicaties (benchmarks)', href: 'https://www.cvta.nl/actueel/publicaties' } ],
+      kantar: [ { label: 'Onderzoek privékopiëren – Thuiskopie', href: 'https://www.thuiskopie.nl/onderzoek' } ],
+    };
+
+    const CATEGORIES = [
+      { id: 'wet', label: 'Wet & beleid', color: '#0ea5e9', description: 'Auteurswet, WNR, Auteurscontractenrecht, WT, DSM‑richtlijn en uitzonderingen.', children: [
+        { id: 'aw', label: 'Auteurswet' }, { id: 'wnr', label: 'Wet naburige rechten' }, { id: 'contract', label: 'Auteurscontractenrecht' }, { id: 'wt', label: 'Wet toezicht CBO’s' }, { id: 'dsm', label: 'EU DSM‑richtlijn' }, { id: 'excepties', label: 'Uitzonderingen' }
+      ] },
+      { id: 'toezicht', label: 'Toezicht & kader', color: '#22c55e', description: 'CvTA, JenV, SONT, HR/HvJEU.', children: [
+        { id: 'cvta', label: 'CvTA' }, { id: 'jenv', label: 'JenV' }, { id: 'sont', label: 'SONT' }, { id: 'rbhr', label: 'Rechtspraak (HR)' }, { id: 'hvjeu', label: 'HvJEU' }
+      ] },
+      { id: 'cbo', label: 'Collectief beheer (CBO’s)', color: '#f59e0b', description: 'Buma/Stemra, Sena, NORMA, Lira, PRO/UvO, Pictoright, VEVAM, Videma, SEKAM, Reprorecht, Leenrecht, Thuiskopie.', children: [
+        { id: 'bumastemra', label: 'Buma/Stemra' },{ id: 'sena', label: 'Sena' },{ id: 'norma', label: 'NORMA' },{ id: 'lira', label: 'Lira' },{ id: 'pro', label: 'Stichting PRO / UvO' },{ id: 'pictoright', label: 'Pictoright' },{ id: 'vevam', label: 'VEVAM' },{ id: 'videma', label: 'Videma' },{ id: 'sekam', label: 'SEKAM (Video)' },{ id: 'repro', label: 'Stichting Reprorecht' },{ id: 'leenrecht', label: 'Stichting Leenrecht' },{ id: 'thuiskopie', label: 'Stichting de Thuiskopie' }
+      ] },
+      { id: 'gebruikers', label: 'Gebruikers & markten', color: '#ef4444', description: 'Platforms, omroepen, telco/nPVR, onderwijs/erfgoed, bedrijven, overheden.', children: [
+        { id: 'platforms', label: 'Platforms (YouTube/Spotify/Netflix)' },{ id: 'omroepen', label: 'Omroepen' },{ id: 'telco', label: 'Telco / nPVR' },{ id: 'onderwijs', label: 'Onderwijs & erfgoed' },{ id: 'bedrijven', label: 'Bedrijven' },{ id: 'overheden', label: 'Overheden' }
+      ] },
+      { id: 'geld', label: 'Geldstromen', color: '#a855f7', description: 'Licenties, repro/leen/thuiskopie, uitwisseling cbo↔cbo, termijnen, onverdeeld.', children: [
+        { id: 'licenties', label: 'Licenties (direct/collectief)' },{ id: 'reproleen', label: 'Repro/Leen' },{ id: 'thuiskopiechild', label: 'Thuiskopie (dragers/cloud)' },{ id: 'uitwisseling', label: 'Internationale uitwisseling' },{ id: 'termijnen', label: 'Repartitie‑termijnen' },{ id: 'onverdeeld', label: 'Onverdeelde gelden' }
+      ] },
+      { id: 'data', label: 'Data & meting', color: '#14b8a6', description: 'Gebruik/repertoire, Verian/Thuiskopie, CvTA‑benchmarks, doorlooptijden, ketenkosten.', children: [
+        { id: 'gebruiksdata', label: 'Gebruiksdata & repertoire' },{ id: 'kantar', label: 'Privékopie‑onderzoek (Thuiskopie/Verian)' },{ id: 'cvtabench', label: 'CvTA‑benchmarks' },{ id: 'doorlooptijd', label: 'Doorlooptijden' },{ id: 'ketenkosten', label: 'Keten‑ & beheerskosten' }
+      ] },
+      { id: 'themas', label: 'Thema’s 2025', color: '#3b82f6', description: 'Good governance, preventief toezicht, kostennorm/ketenkosten, AI/TDM, platformdata, BTW, cybersecurity.', children: [
+        { id: 'governance', label: 'Good governance' },{ id: 'preventief', label: 'Preventief toezicht' },{ id: 'kostennorm', label: '(Individuele) kostennorm' },{ id: 'ai', label: 'AI & TDM' },{ id: 'platform', label: 'Platformmacht & data' },{ id: 'btw', label: 'BTW‑cultuur' },{ id: 'cyber', label: 'Cybersecurity' }
+      ] },
+    ];
+
+    const CENTER = { id: 'center', label: 'Auteursrechten NL', description: 'Kernknooppunt: recht → organisaties → geldstromen → data → toezicht.' };
+
+    // ------------------------ Helpers ---------------------------------------
+    function polarToXY(angleDeg, radius) {
+      const a = (angleDeg * Math.PI) / 180; return { x: Math.cos(a) * radius, y: Math.sin(a) * radius };
+    }
+
+    function buildGraph() {
+      const nodes = []; const edges = [];
+      nodes.push({ id: CENTER.id, position: { x: 0, y: 0 }, data: { label: CENTER.label, desc: CENTER.description, type: 'center' }, style: { background: '#111827', color: 'white', borderRadius: 16, padding: 12, border: '2px solid #111827', fontWeight: 700 } });
+      const ring1R = 280; const ring2R = 520; const step = 360 / CATEGORIES.length;
+      CATEGORIES.forEach((cat, idx) => {
+        const angle = idx * step - 90; const p = polarToXY(angle, ring1R);
+        nodes.push({ id: cat.id, position: { x: p.x, y: p.y }, data: { label: cat.label, desc: cat.description, type: 'category', color: cat.color, links: LINKS[cat.id] || [] }, style: { background: '#fff', border: `2px solid ${cat.color}`, borderRadius: 14, padding: 10, fontWeight: 600 } });
+        edges.push({ id: `e-${CENTER.id}-${cat.id}`, source: CENTER.id, target: cat.id, animated: true });
+        const spread = Math.max(40, Math.min(120, cat.children.length * 14)); const start = angle - spread/2; const delta = spread / Math.max(1, cat.children.length - 1);
+        cat.children.forEach((child, i) => { const a = start + i * delta; const cp = polarToXY(a, ring2R);
+          nodes.push({ id: child.id, position: { x: cp.x, y: cp.y }, data: { label: child.label, type: 'leaf', parent: cat.id, color: cat.color, links: LINKS[child.id] || [] }, style: { background: '#fff', border: `1.5px solid ${cat.color}`, borderRadius: 12, padding: 8, fontSize: 13 } });
+          edges.push({ id: `e-${cat.id}-${child.id}`, source: cat.id, target: child.id });
+        });
+      });
+      return { nodes, edges };
+    }
+
+    // ------------------------- App -----------------------------------------
+    function App() {
+      const { nodes, edges } = useMemo(buildGraph, []);
+      const [selected, setSelected] = useState(null);
+
+      return React.createElement(React.Fragment, null,
+        // Left: Graph canvas
+        React.createElement('div', { className: 'graph', id: 'graph' },
+          // ⚠️ Pass children as arguments (not via props) to avoid React #31
+          React.createElement(
+            ReactFlow,
+            { nodes, edges, fitView: true, onNodeClick: (_, n) => setSelected(n) },
+            React.createElement(MiniMap, { className: '!bg-white/70' }),
+            React.createElement(Controls, null),
+            React.createElement(Background, { gap: 20 })
+          )
+        ),
+        // Right: Details panel
+        React.createElement('aside', { className: 'panel' },
+          React.createElement('div', { className: 'legend' },
+            React.createElement('h2', null, 'Interactieve kaart – NL Auteursrechten'),
+            React.createElement('p', { className: 'muted' }, 'Klik op een knooppunt voor beschrijving en links.')
+          ),
+          selected ? (
+            React.createElement('div', null,
+              React.createElement('h3', { className: 'title' }, selected.data.label),
+              selected.data.desc ? React.createElement('p', null, selected.data.desc) : React.createElement('p', { className: 'muted' }, 'Geen extra beschrijving beschikbaar.'),
+              Array.isArray(selected.data.links) && selected.data.links.length > 0 && React.createElement('div', { className: 'links' },
+                React.createElement('strong', null, 'Bronnen & links'),
+                React.createElement('ul', null,
+                  selected.data.links.map((l, i) => React.createElement('li', { key: i }, React.createElement('a', { href: l.href, target: '_blank', rel: 'noreferrer' }, l.label)))
+                )
+              )
+            )
+          ) : (
+            React.createElement('p', { className: 'muted' }, 'Nog niets geselecteerd.')
+          ),
+          React.createElement('div', { className: 'footer' }, 'Tip: plaats dit bestand op uw server en embed het met een <iframe> op uw site.')
+        )
+      );
+    }
+
+    // ------------------------- Mount & Tests --------------------------------
+    const container = document.getElementById('root');
+    const root = createRoot(container);
+    root.render(React.createElement(App));
+
+    // Minimal self‑tests (console):
+    (function selfTest(){
+      try {
+        const { nodes, edges } = buildGraph();
+        console.assert(Array.isArray(nodes) && nodes.length > 0, 'nodes generated');
+        console.assert(Array.isArray(edges) && edges.length > 0, 'edges generated');
+        console.assert(typeof ReactFlow === 'function' || typeof ReactFlow === 'object', 'ReactFlow available');
+        console.log('✅ Embed self‑test passed');
+      } catch (e) {
+        console.error('❌ Embed self‑test failed', e);
+      }
+    })();
+  </script>
+</body>
+</html>
